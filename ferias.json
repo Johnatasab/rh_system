@@ -1,0 +1,11 @@
+[
+  {
+    "id": "f182cbfa-1f65-4306-9432-6b6e24c6b947",
+    "matricula_funcionario": "20250001",
+    "data_inicio": "2025-05-02",
+    "data_fim": "2025-05-30",
+    "status": "Agendada",
+    "observacao": null,
+    "dias_ferias": 29
+  }
+]

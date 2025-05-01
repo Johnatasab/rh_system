@@ -1,0 +1,10 @@
+rh_system/
+│── main.py               # Ponto de entrada
+│── models/               # Classes de domínio
+│   │── funcionario.py
+│── services/             # Lógica de negócios
+│   │── rh_service.py
+│── utils/                # Utilitários
+│   │── matricula.py
+│── database/             # Persistência
+│   │── json_repository.py
