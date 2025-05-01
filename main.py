@@ -7,6 +7,7 @@ from typing import Optional, Dict, List
 from models.funcionario import Funcionario
 from services.rh_service import RHService
 from services.ferias_service import FeriasService
+from services.ferias_service import StatusFerias
 from utils.matricula import gerar_matricula
 from database.json_repository import FuncionarioRepository
 
@@ -405,47 +406,39 @@ class SistemaRH:
 
     def menu_ferias(self):
         """Menu de gerenciamento de férias."""
-        try:
-            logger.info("Acessando módulo de férias")
-            while True:
-                self.exibir_cabecalho("GERENCIAMENTO DE FÉRIAS")
-                print("\nMENU DE FÉRIAS:\n")
-                print("1. Agendar férias")
-                print("2. Consultar férias por funcionário")
-                print("3. Listar todas férias")
-                print("4. Aprovar férias")
-                print("5. Cancelar férias")
-                print("6. Registrar férias gozadas")
-                print("7. Remover agendamento")
-                print("9. Voltar ao menu principal")
-                print("\n" + "=" * 50)
+        while True:
+            print("\nMENU DE FÉRIAS:\n")
+            print("1. Agendar férias")
+            print("2. Consultar férias por funcionário")
+            print("3. Listar todas férias")
+            print("4. Aprovar férias")
+            print("5. Cancelar férias")
+            print("6. Registrar férias gozadas")
+            print("7. Remover agendamento")
+            print("9. Voltar ao menu principal")
+            print("\n" + "=" * 50)
 
-                opcao = input("\nEscolha uma opção: ").strip()
+            opcao = input("\nEscolha uma opção: ").strip()
 
-                if opcao == "1":
-                    self.agendar_ferias()
-                elif opcao == "2":
-                    self.consultar_ferias_funcionario()
-                elif opcao == "3":
-                    self.listar_todas_ferias()
-                elif opcao == "4":
-                    self.aprovar_ferias()
-                elif opcao == "5":
-                    self.cancelar_ferias()
-                elif opcao == "6":
-                    self.registrar_ferias_gozadas()
-                elif opcao == "7":
-                    self.remover_agendamento_ferias()
-                elif opcao == "9":
-                    self.mostrar_menu_principal()
-                else:
-                    logger.warning(f"Opção inválida no menu de férias: {opcao}")
-                    print("\n❌ Opção inválida!")
-                    self.aguardar_enter()
-        except Exception as e:
-            logger.error(f"Erro no módulo de férias: {str(e)}", exc_info=True)
-            print("\n❌ Ocorreu um erro no módulo de férias")
-            self.aguardar_enter()
+            if opcao == "1":
+                self.agendar_ferias()
+            elif opcao == "2":
+                self.consultar_ferias_funcionario()
+            elif opcao == "3":
+                self.listar_todas_ferias()
+            elif opcao == "4":
+                self.aprovar_ferias()
+            elif opcao == "5":
+                self.cancelar_ferias()
+            elif opcao == "6":
+                self.registrar_ferias_gozadas()
+            elif opcao == "7":
+                self.remover_agendamento_ferias()
+            elif opcao == "9":
+                break
+            else:
+                print("\n❌ Ocorreu um erro no módulo de férias")
+                self.aguardar_enter()
 
     def agendar_ferias(self):
         """Interface para agendamento de férias."""

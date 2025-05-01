@@ -4,7 +4,6 @@ from database.json_repository import FuncionarioRepository
 from models.funcionario import Funcionario
 from utils.matricula import gerar_matricula
 
-
 class RHService:
     def __init__(self):
         self.repo = FuncionarioRepository()
