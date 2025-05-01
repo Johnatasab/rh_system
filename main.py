@@ -6,10 +6,11 @@ from typing import Optional, Dict, List
 # Importações dos nossos módulos
 from models.funcionario import Funcionario
 from services.rh_service import RHService
-from services.ferias_service import FeriasService
-from services.ferias_service import StatusFerias
+from services.cep_service import CEPService
+from services.ferias_service import FeriasService, StatusFerias
 from utils.matricula import gerar_matricula
 from database.json_repository import FuncionarioRepository
+from utils.validadores import ValidadorDocumentos, ValidadorEmail
 
 
 class SistemaRH:
@@ -65,7 +66,16 @@ class SistemaRH:
             # Dados pessoais
             print("\nDADOS PESSOAIS")
             nome = input("Nome completo: ").strip()
-            cpf = input("CPF (somente números): ").strip()
+
+            while True:
+                cpf = input("CPF (somente números): ").strip()
+                try:
+                    if ValidadorDocumentos.validar_cpf(cpf):
+                        break
+                    print("CPF inválido! Digite novamente.")
+                except ValueError as e:
+                    print(f"Erro {str(e)}")
+
             rg = input("RG: ").strip()
 
             print("\nData de nascimento (DD/MM/AAAA): ")
@@ -79,19 +89,57 @@ class SistemaRH:
 
             # Contatos
             print("\nDADOS DE CONTATO")
-            email = input("E-mail: ").strip()
+            while True:
+                email = input("E-mail: ").strip()
+                try:
+                    if ValidadorEmail.validar_email(email):
+                        break
+                    print("E-mail inválido! Formato esperado: nome@dominio.com")
+                except ValueError as e:
+                    print(f"Erro {str(e)}")
+
             telefone = input("Telefone (opcional): ").strip() or None
             celular = input("Celular (opcional): ").strip() or None
 
             # Endereço
             print("\nENDEREÇO")
-            cep = input("CEP: ").strip()
-            endereco = input("Endereço: ").strip()
-            numero = input("Número: ").strip()
-            complemento = input("Complemento (opcional): ").strip() or None
-            bairro = input("Bairro: ").strip()
-            cidade = input("Cidade: ").strip()
-            estado = input("Estado (sigla): ").strip().upper()
+            while True:
+                cep = input("CEP (digite 'sair' para pular): ").strip()
+                if cep.lower() == 'sair':
+                    break
+                try:
+                    dados_cep = CEPService.consultar_cep(cep)
+                    if dados_cep:
+                        print("\nEndereço encontrado:")
+                        print(f"Logradouro: {dados_cep['logradouro']}")
+                        print(f"Bairro: {dados_cep['bairro']}")
+                        print(f"Cidade/UF: {dados_cep['localidade']}/{dados_cep['uf']}")
+
+                        # Solicitar confirmação de endereço
+                        confirmacao = input("\nUsar este endereço? (S/N): ").strip().upper()
+                        if confirmacao == 'S':
+                            endereco = dados_cep['logradouro']
+                            bairro = dados_cep['bairro']
+                            cidade = dados_cep['localidade']
+                            estado = dados_cep['uf']
+                            complemento = dados_cep.get('complemento', '')
+                            print("Endereço auto-preenchido com sucesso!")
+                            break
+                        else:
+                            print("CEP não encontrado. Preencha manualmente")
+                            break
+                except Exception as e:
+                    print(f"Erro ao consultar CEP: {str(e)}")
+                    continue
+
+            # Se não encontrou CEP ou usuário escolheu plura, pede manualmente
+            if not dados_cep or confirmacao != 'S':
+                endereco = input("Endereço: ").strip()
+                numero = input("Número: ").strip()
+                complemento = input("Complemento (opcional): ").strip() or None
+                bairro = input("Bairro: ").strip()
+                cidade = input("Cidade: ").strip()
+                estado = input("Estado (sigla): ").strip().upper()
 
             # Dados profissionais
             print("\nDADOS PROFISSIONAIS")

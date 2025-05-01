@@ -3,6 +3,7 @@ from typing import Optional, List, Dict
 from database.json_repository import FuncionarioRepository
 from models.funcionario import Funcionario
 from utils.matricula import gerar_matricula
+from utils.validadores import ValidadorDocumentos, ValidadorEmail
 
 class RHService:
     def __init__(self):
@@ -40,13 +41,25 @@ class RHService:
             banco: str,
             agencia: str,
             conta: str,
-            tipo_conta: str
+            tipo_conta: str,
+            **kwargs
     ) -> Funcionario:
         """Cadastra um novo funcionário no sistema."""
-
+        # Validação do CPF
+        if not ValidadorDocumentos.validar_cpf(cpf):
+            raise ValueError("CPF inválido")
         # Verifica se CPF já está cadastrado
         if self.buscar_por_cpf(cpf):
             raise ValueError("CPF já cadastrado no sistema")
+        # Formata o CPF antes de armazenar
+        kwargs['cpf'] = ValidadorDocumentos.formatar_cpf(cpf)
+
+        # Validação do E-mail
+        if not ValidadorEmail.validar_email(email):
+            raise ValueError("E-mail inválido")
+        # Verificar se E-mail já esta cadastrado
+        if self.buscar_por_email(email):
+            raise ValueError("E-mail já cadastrado no sistema")
 
         # Gera matrícula automática
         matricula = gerar_matricula()
@@ -55,12 +68,12 @@ class RHService:
         funcionario = Funcionario(
             matricula=matricula,
             nome=nome,
-            cpf=cpf,
+            cpf=kwargs.get('cpf', ''),
             rg=rg,
             data_nascimento=data_nascimento,
             genero=genero,
             estado_civil=estado_civil,
-            email=email,
+            email=kwargs.get('email', ''),
             telefone=telefone,
             celular=celular,
             cep=cep,
@@ -94,6 +107,23 @@ class RHService:
         funcionarios = self.repo.listar_funcionarios()
         for func in funcionarios:
             if func.cpf == cpf:
+                return func
+        return None
+
+    def buscar_por_nome(self, nome: str) -> List[Funcionario]:
+        """Busca funcionários por parte do nome (case insensitive)."""
+        nome = nome.lower()
+        return [f for f in self.listar_funcionarios() if nome in f.nome.lower()]
+
+    def buscar_por_email(self, email: str) -> Optional[Funcionario]:
+        """"Buscar um funcionário por E-mail (case insensitive)"""
+        email_normalizado = ValidadorEmail.normalizar_email(email)
+        if not email_normalizado:
+            return None
+
+        funcionarios = self.repo.listar_funcionarios()
+        for func in funcionarios:
+            if func.email.lower() == email_normalizado:
                 return func
         return None
 
@@ -134,11 +164,6 @@ class RHService:
     def listar_funcionarios_ativos(self) -> List[Funcionario]:
         """Retorna apenas os funcionários ativos."""
         return [f for f in self.listar_funcionarios() if f.ativo]
-
-    def buscar_por_nome(self, nome: str) -> List[Funcionario]:
-        """Busca funcionários por parte do nome (case insensitive)."""
-        nome = nome.lower()
-        return [f for f in self.listar_funcionarios() if nome in f.nome.lower()]
 
     def apagar_funcionario(self, matricula: str) -> bool:
         """Remove permanentemente um funcionário do sistema."""

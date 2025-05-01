@@ -1,6 +1,6 @@
 from datetime import date
 from typing import Optional
-
+from utils.validadores import ValidadorDocumentos, ValidadorEmail
 
 class Funcionario:
     def __init__(
@@ -37,24 +37,28 @@ class Funcionario:
             agencia: str,
             conta: str,
             tipo_conta: str,
-            ativo: bool = True
+            ativo: bool = True,
+            **kwargs
     ):
         # Dados pessoais
         self.matricula = matricula
         self.nome = nome
-        self.cpf = cpf
+        self._cpf = None
+        self.cpf = kwargs.get('cpf')
         self.rg = rg
         self.data_nascimento = data_nascimento
         self.genero = genero
         self.estado_civil = estado_civil
 
         # Contatos
-        self.email = email
+        self._email = None
+        self.email = kwargs.get('email')
         self.telefone = telefone
         self.celular = celular
 
         # Endereço
-        self.cep = cep
+        self._cep = None
+        self.cep = kwargs.get('cep')
         self.endereco = endereco
         self.numero = numero
         self.complemento = complemento
@@ -77,6 +81,38 @@ class Funcionario:
         self.tipo_conta = tipo_conta
 
         self.ativo = ativo
+
+    @property
+    def cpf(self) -> str:
+        return self._cpf
+
+    @cpf.setter
+    def cpf(self, value: str):
+        if not ValidadorDocumentos.validar_cpf(value):
+            raise ValueError("CPF inválido")
+        self._cpf = ValidadorDocumentos.formatar_cpf(value)
+
+    @property
+    def email(self) -> str:
+        return self._email
+
+    @email.setter
+    def email(self, value: str):
+        email_normalizado = ValidadorEmail.normalizar_email(value)
+        if not email_normalizado:
+            raise ValueError("E-mail inválido")
+        self._email = email_normalizado
+
+    @property
+    def cep(self) -> str:
+        return self._cep
+
+    @cep.setter
+    def cep(self, value: str):
+        cep_limpo = ''.join(filter(str.isdigit, str(value)))
+        if len(cep_limpo) != 8:
+            raise ValueError ("CEP deve conter 8 dígitos")
+        self._cep = f"{cep_limpo[:5]}-{cep_limpo[5:]}"
 
     def __str__(self):
         return f"{self.matricula} - {self.nome} ({self.cargo})"
