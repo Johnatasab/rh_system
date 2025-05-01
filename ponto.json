@@ -1,0 +1,15 @@
+[
+  {
+    "matricula": "20250001",
+    "data": "2025-05-01",
+    "marcacoes": [
+      {
+        "tipo": "Entrada",
+        "data_hora": "2025-05-01T23:47:24.713050",
+        "observacao": null
+      }
+    ],
+    "horas_trabalhadas": null,
+    "saldo_dia": null
+  }
+]

@@ -5,10 +5,13 @@ from typing import Optional, Dict, List
 
 # Importações dos nossos módulos
 from models.funcionario import Funcionario
+from models.ponto import TipoMarcacao
 from services.rh_service import RHService
 from services.cep_service import CEPService
 from services.ferias_service import FeriasService, StatusFerias
+from services.ponto_service import PontoService
 from utils.matricula import gerar_matricula
+from utils.criptografia import configurar_criptografia
 from database.json_repository import FuncionarioRepository
 from utils.validadores import ValidadorDocumentos, ValidadorEmail
 
@@ -17,6 +20,7 @@ class SistemaRH:
     def __init__(self):
         self.rh_service = RHService()
         self.ferias_service = FeriasService()
+        self.ponto_service = PontoService()
 
     def limpar_tela(self):
         """Limpa a tela do console."""
@@ -34,6 +38,7 @@ class SistemaRH:
         print("3. Editar dados de funcionário")
         print("4. Remover funcionário")
         print("5. Gerenciar férias")
+        print("6. Controle de ponto")
         print("9. Sair do sistema")
         print("\n" + "=" * 50)
 
@@ -756,6 +761,8 @@ class SistemaRH:
                     self.remover_funcionario()
                 elif opcao == "5":
                     self.menu_ferias()
+                elif opcao == "6":
+                    self.menu_ponto()
                 elif opcao == "9":
                     print("\nSaindo do sistema...")
                     break
@@ -770,7 +777,213 @@ class SistemaRH:
                 print("\n❌ Ocorreu um erro inesperado")
                 self.aguardar_enter()
 
+    def menu_ponto(self):
+        """Menu do sistema de ponto eletrônico"""
+        while True:
+            self.limpar_tela()
+            print("=" * 50)
+            print("CONTROLE DE PONTO ELETRÔNICO".center(50))
+            print("=" * 50)
+            print("\nMENU:\n")
+            print("1. Registrar ponto")
+            print("2. Consultar marcações do dia")
+            print("3. Relatório diário")
+            print("4. Relatório mensal")
+            print("5. Banco de horas")
+            print("6. Voltar ao menu principal")
+            print("\n" + "=" * 50)
+
+            opcao = input("\nEscolha uma opção: ").strip()
+
+            if opcao == "1":
+                self.registrar_ponto()
+            elif opcao == "2":
+                self.consultar_marcacoes_dia()
+            elif opcao == "3":
+                self.gerar_relatorio_diario()
+            elif opcao == "4":
+                self.gerar_relatorio_mensal()
+            elif opcao == "5":
+                self.consultar_banco_horas()
+            elif opcao == "6":
+                break
+            else:
+                print("\n❌ Opção inválida!")
+                self.aguardar_enter()
+
+    def registrar_ponto(self):
+        """Interface para registro de ponto"""
+        self.limpar_tela()
+        print("=" * 50)
+        print("REGISTRO DE PONTO".center(50))
+        print("=" * 50)
+
+        matricula = input("\nMatrícula: ").strip()
+
+        print("\nTipos de marcação:")
+        print("1. Entrada")
+        print("2. Saída")
+        print("3. Início Intervalo")
+        print("4. Fim Intervalo")
+
+        tipo_opcao = input("\nTipo de marcação: ").strip()
+        tipos = {
+            '1': TipoMarcacao.ENTRADA,
+            '2': TipoMarcacao.SAIDA,
+            '3': TipoMarcacao.INICIO_INTERVALO,
+            '4': TipoMarcacao.FIM_INTERVALO
+        }
+
+        if tipo_opcao not in tipos:
+            print("\n❌ Tipo de marcação inválido!")
+            self.aguardar_enter()
+            return
+
+        observacao = input("\nObservação (opcional): ").strip() or None
+
+        try:
+            marcacao = self.ponto_service.registrar_marcacao(
+                matricula=matricula,
+                tipo=tipos[tipo_opcao],
+                observacao=observacao
+            )
+
+            print(f"\n✅ Ponto registrado com sucesso!")
+            print(f"Tipo: {marcacao.tipo.value}")
+            print(f"Data/Hora: {marcacao.data_hora.strftime('%d/%m/%Y %H:%M:%S')}")
+
+        except Exception as e:
+            print(f"\n❌ Erro ao registrar ponto: {str(e)}")
+
+        self.aguardar_enter()
+
+    def consultar_marcacoes_dia(self):
+        """Consulta as marcações do dia atual"""
+        self.limpar_tela()
+        print("=" * 50)
+        print("CONSULTA DE MARCAÇÕES - DIA".center(50))
+        print("=" * 50)
+
+        matricula = input("\nMatrícula: ").strip()
+        data_str = input("Data (DD/MM/AAAA, deixe em branco para hoje): ").strip()
+
+        try:
+            data = datetime.strptime(data_str, "%d/%m/%Y").date() if data_str else date.today()
+            dia = self.ponto_service.obter_dia_trabalho(matricula, data)
+
+            if not dia or not dia.marcacoes:
+                print(f"\nNenhuma marcação encontrada para {data.strftime('%d/%m/%Y')}")
+                self.aguardar_enter()
+                return
+
+            print(f"\nMarcações em {data.strftime('%d/%m/%Y')}:")
+            print("-" * 50)
+            for i, marcacao in enumerate(dia.marcacoes, 1):
+                print(f"{i}. {marcacao.tipo.value}: {marcacao.data_hora.strftime('%H:%M:%S')}")
+                if marcacao.observacao:
+                    print(f"   Observação: {marcacao.observacao}")
+
+            if dia.horas_trabalhadas:
+                print("\nResumo:")
+                print(f"Total trabalhado: {str(dia.horas_trabalhadas)}")
+                print(f"Saldo do dia: {str(dia.saldo_dia)}")
+
+        except ValueError:
+            print("\n❌ Data inválida! Use o formato DD/MM/AAAA")
+        except Exception as e:
+            print(f"\n❌ Erro ao consultar marcações: {str(e)}")
+
+        self.aguardar_enter()
+
+    def gerar_relatorio_mensal(self):
+        """Gera relatório mensal de horas trabalhadas"""
+        self.limpar_tela()
+        print("=" * 50)
+        print("RELATÓRIO MENSAL DE PONTO".center(50))
+        print("=" * 50)
+
+        matricula = input("\nMatrícula: ").strip()
+        mes = input("Mês (MM): ").strip()
+        ano = input("Ano (AAAA): ").strip()
+
+        try:
+            relatorio = self.ponto_service.gerar_relatorio_mensal(
+                matricula=matricula,
+                mes=int(mes),
+                ano=int(ano)
+            )
+
+            self._exibir_relatorio_mensal(relatorio)
+
+        except ValueError:
+            print("\n❌ Mês ou ano inválidos!")
+        except Exception as e:
+            print(f"\n❌ Erro ao gerar relatório: {str(e)}")
+
+        self.aguardar_enter()
+
+    def _exibir_relatorio_mensal(self, relatorio: Dict):
+        """Exibe o relatório mensal formatado"""
+        print(f"\nRELATÓRIO MENSAL - {relatorio['mes']}/{relatorio['ano']}")
+        print(f"Matrícula: {relatorio['matricula']}")
+        print("=" * 50)
+
+        for dia in relatorio['dias_trabalhados']:
+            print(f"\n{dia['data']}:")
+            for marcacao in dia['marcacoes']:
+                print(f"  {marcacao['tipo']}: {marcacao['hora']}")
+            print(f"  Total: {dia['horas_trabalhadas']}")
+            print(f"  Saldo: {dia['saldo_dia']}")
+
+        print("\nRESUMO MENSAL:")
+        print(f"Total de dias trabalhados: {relatorio['resumo']['dias_trabalhados']}")
+        print(f"Horas extras: {relatorio['resumo']['total_extras']}")
+        print(f"Horas faltantes: {relatorio['resumo']['total_faltantes']}")
+        print(f"Saldo total: {relatorio['resumo']['saldo_total']}")
+
+    def consultar_banco_horas(self):
+        """Consulta o banco de horas em um período"""
+        self.limpar_tela()
+        print("=" * 50)
+        print("CONSULTA DE BANCO DE HORAS".center(50))
+        print("=" * 50)
+
+        matricula = input("\nMatrícula: ").strip()
+        data_inicio = input("Data início (DD/MM/AAAA): ").strip()
+        data_fim = input("Data fim (DD/MM/AAAA): ").strip()
+
+        try:
+            di = datetime.strptime(data_inicio, "%d/%m/%Y").date()
+            df = datetime.strptime(data_fim, "%d/%m/%Y").date()
+
+            if di > df:
+                print("\n❌ Data início deve ser anterior à data fim!")
+                self.aguardar_enter()
+                return
+
+            banco = self.ponto_service.calcular_banco_horas(
+                matricula=matricula,
+                data_inicio=di,
+                data_fim=df
+            )
+
+            print("\nRESULTADO:")
+            print(f"Período: {banco['periodo']['inicio']} a {banco['periodo']['fim']}")
+            print(f"Total horas extras: {banco['total_extras']}")
+            print(f"Total horas faltantes: {banco['total_faltantes']}")
+            print(f"Saldo total: {banco['saldo_total']}")
+            print(f"Dias trabalhados: {banco['dias_trabalhados']}")
+
+        except ValueError:
+            print("\n❌ Data inválida! Use o formato DD/MM/AAAA")
+        except Exception as e:
+            print(f"\n❌ Erro ao consultar banco de horas: {str(e)}")
+
+        self.aguardar_enter()
+
 
 if __name__ == "__main__":
+    SENHA_MESTRE = b'sua_senha_super_secreta_aqui'
+    configurar_criptografia(SENHA_MESTRE)
     sistema = SistemaRH()
     sistema.executar()

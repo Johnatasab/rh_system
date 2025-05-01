@@ -1,6 +1,7 @@
 from datetime import date
-from typing import Optional
+from typing import Optional, Union
 from utils.validadores import ValidadorDocumentos, ValidadorEmail
+from utils.criptografia import criptografia_service
 
 class Funcionario:
     def __init__(
@@ -72,13 +73,24 @@ class Funcionario:
         self.data_admissao = data_admissao
         self.tipo_contrato = tipo_contrato
         self.jornada_trabalho = jornada_trabalho
-        self.salario = salario
-
-        # Dados bancários
-        self.banco = banco
-        self.agencia = agencia
-        self.conta = conta
-        self.tipo_conta = tipo_conta
+        self._salario = None
+        self._dados_bancarios = {
+            'banco': None,
+            'agencia': None,
+            'conta': None,
+            'tipo_conta': None
+        }
+        # Atribui usando os setters que fazem criptografia
+        if 'salario' in kwargs:
+            self.salario = kwargs['salario']
+        if 'banco' in kwargs:
+            self.banco = kwargs['banco']
+        if 'agencia' in kwargs:
+            self.agencia = kwargs['agencia']
+        if 'conta' in kwargs:
+            self.conta = kwargs['conta']
+        if 'tipo_conta' in kwargs:
+            self.tipo_conta = kwargs['tipo_conta']
 
         self.ativo = ativo
 
@@ -113,6 +125,74 @@ class Funcionario:
         if len(cep_limpo) != 8:
             raise ValueError ("CEP deve conter 8 dígitos")
         self._cep = f"{cep_limpo[:5]}-{cep_limpo[5:]}"
+
+    @property
+    def salario(self) -> float:
+        """Descriptografa o salário para acesso"""
+        if self._salario is None:
+            return None
+        return float(criptografia_service.descriptografar(self._salario))
+
+    @salario.setter
+    def salario(self, value: Union[str, int, float]):
+        """Criptografa o salário antes de armazenar"""
+        if value is not None:
+            self._salario = criptografia_service.criptografar(value)
+
+    # Propriedades para dados bancários
+    @property
+    def banco(self) -> str:
+        return self._get_dado_bancario('banco')
+    @banco.setter
+    def banco(self, value: str):
+        self._set_dado_bancario('banco', value)
+
+    # Agência
+    @property
+    def agencia(self, value: str):
+        return self._get_dado_bancario('agencia')
+    @banco.setter
+    def agencia(self, value: str):
+        self._set_dado_bancario('agencia', value)
+
+    # Conta
+    @property
+    def conta(self, value: str):
+        return self._get_dado_bancario('conta')
+    @banco.setter
+    def conta(self, value: str):
+        self._set_dado_bancario('conta', value)
+
+    # Tipo de conta
+    @property
+    def tipo_conta(self, value: str):
+        return self._get_dado_bancario('tipo_conta')
+    @banco.setter
+    def tipo_conta(self, value: str):
+        self._set_dado_bancario('tipo_conta', value)
+
+    def _get_dado_bancario(self, campo: str) -> str:
+        """Método auxiliar para descriptografar dados bancários"""
+        valor = self._dados_bancarios.get(campo)
+        return criptografia_service.descriptografar(valor) if valor else None
+
+    def _set_dado_bancario(self, campo: str, value: str):
+        """Método auxiliar para criptografar dados bancários"""
+        self._dados_bancarios[campo] = criptografia_service.criptografar(value) if value else None
+
+    def to_dict(self) -> dict:
+        """Serializa o funcionário mantendo dados sensíveis criptografados"""
+        dados = {
+            # ... (outros campos)
+            'salario': self._salario,
+            'dados_bancarios': {
+                'banco': self._dados_bancarios['banco'],
+                'agencia': self._dados_bancarios['agencia'],
+                'conta': self._dados_bancarios['conta'],
+                'tipo_conta': self._dados_bancarios['tipo_conta']
+            }
+        }
+        return dados
 
     def __str__(self):
         return f"{self.matricula} - {self.nome} ({self.cargo})"
